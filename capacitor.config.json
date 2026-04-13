@@ -1,0 +1,22 @@
+{
+  "appId": "com.virginactive.race",
+  "appName": "Virgin Race",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "backgroundColor": "#111111",
+      "androidSplashResourceName": "splash",
+      "showSpinner": false
+    }
+  }
+}

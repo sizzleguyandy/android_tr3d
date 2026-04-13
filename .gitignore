@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Capacitor
+.android/
+!android/.gitkeep
+www/
+www/build/
+
+# Build outputs
+build/
+dist/
+*.apk
+*.aab
+*.ipa
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Misc
+capacitor.config.ts.buildtime*
