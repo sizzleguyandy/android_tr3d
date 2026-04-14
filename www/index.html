@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Virgin Race</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <div id="app">
+
+    <!-- Dynamic content (onboarding or main screens) -->
+    <div id="screen"></div>
+
+    <!-- Bottom tab bar — hidden during onboarding -->
+    <nav id="tab-bar" class="tab-bar hidden">
+
+      <button class="tab-btn" data-tab="home" onclick="App.tab('home')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        <span>Home</span>
+      </button>
+
+      <button class="tab-btn" data-tab="club" onclick="App.tab('club')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+          <circle cx="12" cy="10" r="3"/>
+        </svg>
+        <span>Club</span>
+      </button>
+
+      <button class="tab-btn" data-tab="rewards" onclick="App.tab('rewards')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
+        <span>Rewards</span>
+      </button>
+
+      <button class="tab-btn" data-tab="workouts" onclick="App.tab('workouts')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="5 3 19 12 5 21 5 3"/>
+        </svg>
+        <span>Workouts</span>
+      </button>
+
+      <!-- OUR TAB — Virgin Race -->
+      <button class="tab-btn tab-btn-race active" data-tab="race" onclick="App.tab('race')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="5" r="2"/>
+          <path d="M12 7v5l3 3"/>
+          <path d="M9 12l-3 3"/>
+          <path d="M12 12v5"/>
+          <path d="M9 17l3 2 3-2"/>
+        </svg>
+        <span>Virgin Race</span>
+      </button>
+
+    </nav>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

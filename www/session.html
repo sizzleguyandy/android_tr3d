@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#2e7d32">
+<title>Session Player — Virgin Race</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+:root {
+  --easy:      #2e7d32;
+  --threshold: #e65100;
+  --interval:  #b71c1c;
+  --rep:       #6a1b9a;
+  --marathon:  #1565c0;
+  --recovery:  #37474f;
+}
+html, body { height: 100%; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  height: 100vh; display: flex; flex-direction: column;
+  overflow: hidden; background: var(--easy); color: white;
+  transition: background 0.6s ease;
+}
+
+/* ── Header ───────────────────────────────────────────────────────────── */
+#header {
+  padding: 10px 12px;
+  display: flex; justify-content: space-between; align-items: center;
+  background: rgba(0,0,0,0.25); font-size: 13px; flex-shrink: 0;
+  gap: 8px;
+}
+#exit-btn {
+  background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3);
+  color: white; padding: 4px 10px; border-radius: 14px; font-size: 12px;
+  cursor: pointer; white-space: nowrap; flex-shrink: 0;
+}
+#session-header {
+  font-weight: 600; opacity: 0.9; text-align: center;
+  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+#hr-area { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+#hr-display { font-size: 13px; font-weight: 600; white-space: nowrap; }
+#hr-btn {
+  background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3);
+  color: white; padding: 4px 10px; border-radius: 14px; font-size: 12px; cursor: pointer;
+}
+
+/* ── HR Graph ─────────────────────────────────────────────────────────── */
+#hr-graph-wrap {
+  flex-shrink: 0; height: 72px; position: relative;
+  background: rgba(0,0,0,0.2);
+}
+#hr-graph-wrap.hidden { display: none; }
+#hr-canvas { width: 100%; height: 72px; display: block; }
+#hr-zone-label {
+  position: absolute; top: 4px; right: 8px;
+  font-size: 11px; font-weight: 700; opacity: 0.9;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+}
+
+/* ── Main ─────────────────────────────────────────────────────────────── */
+#main {
+  flex: 1; display: flex; flex-direction: column;
+  justify-content: center; align-items: center;
+  padding: 12px 20px; text-align: center;
+}
+#effort-label {
+  font-size: 12px; text-transform: uppercase; letter-spacing: 2.5px;
+  opacity: 0.75; margin-bottom: 6px; font-weight: 600; width: 100%;
+}
+#segment-desc {
+  font-size: 15px; font-weight: 600; line-height: 1.35;
+  max-width: 320px; margin: 0 auto 16px; opacity: 0.95; width: 100%;
+}
+#timer {
+  font-size: 80px; font-weight: 700;
+  font-variant-numeric: tabular-nums; letter-spacing: -3px; line-height: 1;
+  width: 100%; text-align: center;
+}
+#goal-pace {
+  font-size: 14px; font-weight: 500; opacity: 0.8;
+  margin-top: 8px; min-height: 20px; width: 100%; text-align: center;
+}
+#rep-counter {
+  font-size: 17px; margin-top: 8px; opacity: 0.85;
+  min-height: 24px; font-weight: 500; width: 100%; text-align: center;
+}
+#phase-label {
+  font-size: 13px; margin-top: 4px; opacity: 0.65;
+  min-height: 18px; width: 100%; text-align: center;
+}
+
+/* ── Pace adjust ──────────────────────────────────────────────────────── */
+#pace-adjust {
+  display: flex; align-items: center; justify-content: center;
+  gap: 14px; margin-top: 12px; width: 100%;
+}
+#pace-adjust.hidden { display: none; }
+.pace-btn {
+  width: 48px; height: 48px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.5);
+  background: rgba(255,255,255,0.15); color: white;
+  font-size: 22px; font-weight: 700; cursor: pointer; line-height: 1;
+  transition: background 0.15s;
+}
+.pace-btn:active { background: rgba(255,255,255,0.35); }
+#speed-display {
+  font-size: 15px; font-weight: 600; min-width: 90px; text-align: center; opacity: 0.9;
+}
+
+/* ── Progress ─────────────────────────────────────────────────────────── */
+#progress { padding: 0 16px 8px; flex-shrink: 0; }
+#progress-bar-bg { background: rgba(0,0,0,0.3); border-radius: 4px; height: 6px; margin-bottom: 8px; }
+#progress-bar    { height: 100%; border-radius: 4px; background: rgba(255,255,255,0.9); transition: width 1s linear; }
+#progress-labels { display: flex; justify-content: space-between; font-size: 12px; opacity: 0.75; }
+
+/* ── Controls ─────────────────────────────────────────────────────────── */
+#controls {
+  padding: 6px 16px 20px; display: flex; gap: 12px;
+  justify-content: center; flex-shrink: 0;
+}
+.ctrl-btn {
+  flex: 1; max-width: 150px; padding: 14px 0;
+  border: none; border-radius: 14px; font-size: 15px; font-weight: 600;
+  cursor: pointer; background: rgba(255,255,255,0.2); color: white;
+  transition: background 0.15s;
+}
+.ctrl-btn:active { background: rgba(255,255,255,0.35); }
+
+/* ── Countdown overlay ────────────────────────────────────────────────── */
+#countdown-overlay {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.78); z-index: 100;
+}
+#countdown-overlay.hidden { display: none; }
+#countdown-number { font-size: 130px; font-weight: 800; color: white; line-height: 1; }
+#countdown-next   { font-size: 17px; color: rgba(255,255,255,0.8); margin-top: 12px; padding: 0 24px; text-align: center; }
+
+/* ── Start screen — Garmin-style workout overview ─────────────────────── */
+#start-screen {
+  position: fixed; inset: 0; z-index: 90;
+  background: #121212;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+#start-screen.hidden { display: none; }
+
+/* Top bar */
+#start-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid #2a2a2a;
+  flex-shrink: 0;
+}
+#start-back-btn {
+  background: none; border: none; color: white; font-size: 22px;
+  cursor: pointer; padding: 0 8px 0 0; line-height: 1;
+}
+#start-title {
+  font-size: 17px; font-weight: 700; color: white; flex: 1;
+  text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* Scrollable content */
+#start-body {
+  flex: 1; overflow-y: auto; padding: 0 0 120px;
+}
+
+/* Section headers */
+.start-section-label {
+  font-size: 13px; font-weight: 700; color: #999;
+  padding: 16px 16px 8px; text-transform: uppercase; letter-spacing: 1px;
+}
+
+/* Notes row */
+#start-notes-row {
+  padding: 4px 16px 12px;
+  font-size: 14px; color: rgba(255,255,255,0.65); line-height: 1.5;
+}
+#start-notes-row.hidden { display: none; }
+
+/* Step cards */
+.step-card {
+  background: #1e1e1e; border-radius: 10px;
+  margin: 0 16px 8px; overflow: hidden;
+  position: relative;
+}
+.step-card-inner {
+  padding: 12px 14px 16px;
+}
+.step-card-name {
+  font-size: 16px; font-weight: 600; color: white; margin-bottom: 3px;
+}
+.step-card-time {
+  font-size: 15px; color: rgba(255,255,255,0.55); margin-bottom: 4px;
+}
+.step-card-detail {
+  font-size: 13px; color: rgba(255,255,255,0.45); line-height: 1.5;
+}
+/* Effort colour strip at BOTTOM of card */
+.step-card-bar {
+  height: 4px; width: 100%; border-radius: 0 0 10px 10px;
+}
+
+/* Repeat block — bordered group */
+.repeat-block {
+  border: 1px solid #333; border-radius: 12px;
+  margin: 0 16px 10px; overflow: hidden;
+}
+.repeat-header {
+  font-size: 14px; font-weight: 700; color: white;
+  padding: 10px 14px 8px; background: #1a1a1a;
+}
+.repeat-block .step-card {
+  margin: 0 0 0; border-radius: 0;
+  border-top: 1px solid #2a2a2a;
+}
+.repeat-block .step-card:last-child { border-bottom: none; }
+.repeat-block .step-card-bar { border-radius: 0; }
+.repeat-block .step-card:last-child .step-card-bar { border-radius: 0 0 0 0; }
+
+/* Bottom bar — HR + Start */
+#start-footer {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: #121212; border-top: 1px solid #2a2a2a;
+  padding: 12px 16px 28px; z-index: 91;
+}
+#start-hr-btn {
+  background: #1e1e1e; border: 1px solid #333;
+  color: white; padding: 11px 16px; border-radius: 10px; font-size: 14px;
+  cursor: pointer; width: 100%; margin-bottom: 10px; text-align: left;
+  display: flex; align-items: center; gap: 10px;
+}
+#start-hr-btn.hidden { display: none; }
+#start-hr-btn-icon { font-size: 18px; }
+#start-hr-status { font-size: 12px; color: #888; margin-left: auto; }
+#start-go-btn {
+  background: #E31837; border: none; color: white;
+  padding: 16px 0; border-radius: 12px; font-size: 17px; font-weight: 700;
+  cursor: pointer; width: 100%;
+  box-shadow: 0 4px 20px rgba(227,24,55,0.4);
+}
+
+/* ── Complete screen ──────────────────────────────────────────────────── */
+#complete-screen {
+  position: fixed; inset: 0; background: #1b5e20;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 24px;
+}
+#complete-screen.hidden { display: none; }
+#complete-screen h1 { font-size: 34px; margin-bottom: 20px; }
+#complete-time { font-size: 68px; font-weight: 700; letter-spacing: -2px; margin-bottom: 6px; }
+#complete-screen .sub { opacity: 0.75; font-size: 15px; }
+#complete-name { margin-top: 14px; font-size: 16px; opacity: 0.85; }
+#close-btn {
+  margin-top: 28px; padding: 14px 36px;
+  background: rgba(255,255,255,0.2); border: none; color: white;
+  border-radius: 14px; font-size: 16px; cursor: pointer;
+}
+
+/* ── Env toggle (start screen) ────────────────────────────────────────── */
+#env-toggle-wrap {
+  display: flex; gap: 10px; margin-bottom: 10px;
+}
+.env-choice {
+  flex: 1; padding: 11px 0; border-radius: 10px;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  border: 1.5px solid #333; background: #1e1e1e; color: #888;
+  transition: all .15s;
+}
+.env-choice.active {
+  border-color: #E31837; background: #2a1218; color: white;
+}
+
+/* ── No-session fallback ──────────────────────────────────────────────── */
+#no-session {
+  position: fixed; inset: 0; background: #263238;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 32px; text-align: center;
+}
+#no-session.hidden { display: none; }
+#no-session h2 { font-size: 22px; margin-bottom: 14px; }
+#no-session p  { opacity: 0.75; font-size: 15px; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<!-- Header: Exit | Session Name | HR button -->
+<div id="header">
+  <button id="exit-btn" onclick="exitSession()">✕ Exit</button>
+  <span id="session-header">Session Player</span>
+  <div id="hr-area">
+    <span id="hr-display"></span>
+    <button id="hr-btn" onclick="connectHR()">💓 HR</button>
+  </div>
+</div>
+
+<!-- HR Graph (shown only when rhr + age supplied) -->
+<div id="hr-graph-wrap" class="hidden">
+  <canvas id="hr-canvas"></canvas>
+  <div id="hr-zone-label"></div>
+</div>
+
+<!-- Main timer area -->
+<div id="main">
+  <div id="effort-label">Easy</div>
+  <div id="segment-desc">Loading session…</div>
+  <div id="timer">0:00</div>
+  <div id="goal-pace"></div>
+  <div id="rep-counter"></div>
+  <div id="phase-label"></div>
+
+  <!-- Pace adjust: ▼ / speed display / ▲ -->
+  <div id="pace-adjust" class="hidden">
+    <button class="pace-btn" onclick="adjustPace(-1)" title="Slower">▼</button>
+    <div id="speed-display">10.0 km/h</div>
+    <button class="pace-btn" onclick="adjustPace(+1)" title="Faster">▲</button>
+  </div>
+</div>
+
+<div id="progress">
+  <div id="progress-bar-bg"><div id="progress-bar" style="width:0%"></div></div>
+  <div id="progress-labels">
+    <span id="elapsed-label">0:00 elapsed</span>
+    <span id="remaining-label"></span>
+  </div>
+</div>
+
+<div id="controls">
+  <button class="ctrl-btn" id="pause-btn"   onclick="togglePause()">⏸ Pause</button>
+  <button class="ctrl-btn" id="restart-btn" onclick="restartTap()">↺ Restart</button>
+</div>
+
+<!-- Start screen (Garmin-style workout overview) -->
+<div id="start-screen">
+  <!-- Top bar -->
+  <div id="start-topbar">
+    <button id="start-back-btn" onclick="exitSession()">←</button>
+    <div id="start-title">Session</div>
+  </div>
+
+  <!-- Scrollable body -->
+  <div id="start-body">
+    <div class="start-section-label">Overview</div>
+    <div id="start-notes-row" class="hidden"></div>
+
+    <div class="start-section-label">Steps</div>
+    <div id="start-steps"></div>
+  </div>
+
+  <!-- Fixed footer -->
+  <div id="start-footer">
+    <!-- Indoor / outdoor choice -->
+    <div id="env-toggle-wrap">
+      <button class="env-choice active" id="env-outdoor" onclick="setEnv('outdoor')">🌳 Outdoor</button>
+      <button class="env-choice"        id="env-indoor"  onclick="setEnv('indoor')">🏃 Treadmill</button>
+    </div>
+    <button id="start-hr-btn" onclick="connectHRFromStart()">
+      <span id="start-hr-btn-icon">💓</span>
+      Connect HR Belt
+      <span id="start-hr-status"></span>
+    </button>
+    <button id="start-go-btn" onclick="beginSession()">▶  Start Workout</button>
+  </div>
+</div>
+
+<!-- Countdown overlay -->
+<div id="countdown-overlay" class="hidden">
+  <div id="countdown-number">3</div>
+  <div id="countdown-next"></div>
+</div>
+
+<!-- Complete screen -->
+<div id="complete-screen" class="hidden">
+  <h1>🎉 Session Done!</h1>
+  <div id="complete-time">--:--</div>
+  <div class="sub">Total time</div>
+  <div id="complete-dist" style="font-size:20px;margin-top:10px;opacity:0.85;"></div>
+  <div id="complete-name"></div>
+  <div id="log-status" style="margin-top:14px;font-size:14px;opacity:0.75;min-height:20px;"></div>
+  <button id="close-btn" onclick="closeApp()">Close</button>
+</div>
+
+<!-- No-session fallback -->
+<div id="no-session" class="hidden">
+  <h2>No session loaded</h2>
+  <p>Open this player from the <b>/today</b> command in your bot to load your workout automatically.</p>
+</div>
+
+<script>
+// ── Telegram WebApp ────────────────────────────────────────────────────────
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.expand(); tg.enableClosingConfirmation(); }
+
+// ── URL params ─────────────────────────────────────────────────────────────
+const P          = new URLSearchParams(window.location.search);
+const ATHLETE    = P.get('name')      || 'Runner';
+const SESSION    = P.get('session')   || 'Session';
+const NOTES_RAW  = P.get('notes')     || '';
+const EASY_S     = parsePaceSecs(P.get('easy')      || '6:00');
+const THRESH_S   = parsePaceSecs(P.get('threshold') || '5:20');
+const INTV_S     = parsePaceSecs(P.get('interval')  || '4:50');
+const REP_S      = parsePaceSecs(P.get('rep')       || '4:30');
+const MARATHON_S = parsePaceSecs(P.get('marathon')  || '5:45');
+
+// Auto-log params
+const TID          = P.get('tid')   || '';
+const WEEK_NUM     = parseInt(P.get('week') || '0');
+const DAY_NAME     = P.get('day')   || '';
+const PLANNED_DIST = parseFloat(P.get('dist') || '0');
+const PPACE        = parseFloat(P.get('ppace') || '0');
+const API_BASE     = P.get('api')   || '';
+
+// HR params
+const HR_AGE = parseInt(P.get('age') || '0');
+const HR_RHR = parseInt(P.get('rhr') || '0');
+const HR_ENABLED = HR_AGE >= 15 && HR_RHR >= 30;
+
+// ── HR Zones (Karvonen) ────────────────────────────────────────────────────
+let hrZones = null;
+if (HR_ENABLED) {
+  const maxHR = 220 - HR_AGE;
+  const hrr   = maxHR - HR_RHR;
+  hrZones = {
+    maxHR,
+    z1: { lo: HR_RHR + hrr * 0.50, hi: HR_RHR + hrr * 0.60, label: 'Z1 Recovery',  color: 'rgba(100,200,100,0.35)' },
+    z2: { lo: HR_RHR + hrr * 0.60, hi: HR_RHR + hrr * 0.70, label: 'Z2 Aerobic',   color: 'rgba(80,160,220,0.35)'  },
+    z3: { lo: HR_RHR + hrr * 0.70, hi: HR_RHR + hrr * 0.80, label: 'Z3 Tempo',     color: 'rgba(240,180,40,0.40)'  },
+    z4: { lo: HR_RHR + hrr * 0.80, hi: HR_RHR + hrr * 0.90, label: 'Z4 Threshold', color: 'rgba(230,100,40,0.45)'  },
+    z5: { lo: HR_RHR + hrr * 0.90, hi: maxHR,                label: 'Z5 Max',       color: 'rgba(200,40,40,0.50)'   },
+  };
+}
+
+// HR readings ring buffer (last 60 seconds)
+let hrReadings = [];
+let latestHR   = 0;
+
+function getZoneForHR(bpm) {
+  if (!hrZones || !bpm) return null;
+  const z = hrZones;
+  if (bpm >= z.z5.lo) return z.z5;
+  if (bpm >= z.z4.lo) return z.z4;
+  if (bpm >= z.z3.lo) return z.z3;
+  if (bpm >= z.z2.lo) return z.z2;
+  if (bpm >= z.z1.lo) return z.z1;
+  return { label: 'Below Z1', color: 'rgba(100,200,100,0.2)' };
+}
+
+function drawHRGraph() {
+  const canvas = document.getElementById('hr-canvas');
+  if (!canvas) return;
+  const W = canvas.offsetWidth;
+  const H = canvas.offsetHeight;
+  if (!canvas.width || canvas.width !== W) { canvas.width = W; canvas.height = H; }
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  if (!hrZones) return;
+
+  const minBPM = hrZones.z1.lo - 10;
+  const maxBPM = hrZones.maxHR + 10;
+  const bpmToY = bpm => H - ((bpm - minBPM) / (maxBPM - minBPM)) * H;
+
+  // Zone bands
+  const zones = [hrZones.z1, hrZones.z2, hrZones.z3, hrZones.z4, hrZones.z5];
+  zones.forEach(z => {
+    const y1 = bpmToY(z.hi);
+    const y2 = bpmToY(z.lo);
+    ctx.fillStyle = z.color;
+    ctx.fillRect(0, y1, W, y2 - y1);
+  });
+
+  // HR line
+  if (hrReadings.length < 2) return;
+  ctx.beginPath();
+  ctx.strokeStyle = 'white';
+  ctx.lineWidth = 2;
+  ctx.shadowColor = 'rgba(255,255,255,0.5)';
+  ctx.shadowBlur = 4;
+  const xStep = W / 59;
+  hrReadings.forEach((bpm, i) => {
+    const x = i * xStep;
+    const y = bpmToY(bpm);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Zone label for latest reading
+  if (latestHR > 0) {
+    const zone = getZoneForHR(latestHR);
+    document.getElementById('hr-zone-label').textContent = zone ? zone.label : '';
+  }
+}
+
+function pushHR(bpm) {
+  latestHR = bpm;
+  hrReadings.push(bpm);
+  if (hrReadings.length > 60) hrReadings.shift();
+  document.getElementById('hr-display').textContent = `💓 ${bpm}`;
+  drawHRGraph();
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function parsePaceSecs(s) {
+  const p = (s||'').split(':');
+  return p.length === 2 ? parseInt(p[0])*60 + parseInt(p[1]) : 360;
+}
+function fmtPace(secs) {
+  const m = Math.floor(secs/60);
+  const s = Math.round(secs%60);
+  return `${m}:${s<10?'0':''}${s}/km`;
+}
+function fmtTime(s) {
+  s = Math.max(0, Math.round(s));
+  return Math.floor(s/60)+':'+(s%60<10?'0':'')+(s%60);
+}
+
+// ── Effort config ──────────────────────────────────────────────────────────
+const EFFORT_COLOR = {
+  easy: 'var(--easy)', threshold: 'var(--threshold)',
+  interval: 'var(--interval)', rep: 'var(--rep)',
+  marathon: 'var(--marathon)', recovery: 'var(--recovery)'
+};
+const EFFORT_LABEL = {
+  easy:'Easy', threshold:'Threshold / Tempo', interval:'Interval — Hard',
+  rep:'Repetition / Strides', marathon:'Marathon Pace', recovery:'Recovery Jog'
+};
+function paceFor(effort) {
+  return {rep:REP_S, interval:INTV_S, threshold:THRESH_S, marathon:MARATHON_S, easy:EASY_S}[effort] || EASY_S;
+}
+
+// ── Segment parser ─────────────────────────────────────────────────────────
+function detectEffort(t) {
+  const s = t.toLowerCase();
+  if (/@ r pace|r-pace|stride|repetition pace/.test(s)) return 'rep';
+  if (/@ i pace|interval pace|hard @|@ i\b/.test(s))   return 'interval';
+  if (/@ t pace|threshold pace|@ t\b|tempo|cruise/.test(s)) return 'threshold';
+  if (/@ m pace|marathon pace/.test(s))                return 'marathon';
+  return 'easy';
+}
+function parseRecoverySecs(t) {
+  let m;
+  if ((m = t.match(/[—\-–]\s*(\d+)\s*min\s*(?:jog|rest|recovery)/i))) return parseInt(m[1])*60;
+  if ((m = t.match(/[—\-–]\s*(\d+)\s*s\s*(?:jog|rest|recovery)/i)))   return parseInt(m[1]);
+  if ((m = t.match(/[—\-–]\s*(\d{3,4})m\s*jog/i))) return Math.round(parseInt(m[1]) / 1000 * EASY_S);
+  if (/jog down|walk back|walk down/.test(t.toLowerCase())) return 90;
+  return 90;
+}
+function parseOne(raw) {
+  const t = raw.trim();
+  if (!t) return null;
+  const effort = detectEffort(t);
+  const pace   = paceFor(effort);
+  const rec    = parseRecoverySecs(t);
+  let m;
+
+  if ((m = t.match(/(?:WU|warm.?up)\s+([\d.]+)\s*km/i)))
+    return { label: 'Warm Up — '+m[1]+'km easy', effort:'easy', workSecs:Math.round(parseFloat(m[1])*EASY_S), reps:1, recoverySecs:0 };
+  if ((m = t.match(/(?:CD|cool.?down)\s+([\d.]+)\s*km/i)))
+    return { label: 'Cool Down — '+m[1]+'km easy', effort:'easy', workSecs:Math.round(parseFloat(m[1])*EASY_S), reps:1, recoverySecs:0 };
+  if ((m = t.match(/^(\d+)\s*[×xX]\s*(\d+)\s*min/)))
+    return { label:t, effort, workSecs:parseInt(m[2])*60, reps:parseInt(m[1]), recoverySecs:rec };
+  if ((m = t.match(/^(\d+)\s*[×xX]\s*(\d+)\s*m\b(?!ile)/i)))
+    return { label:t, effort, workSecs:Math.round(parseInt(m[2])/1000*pace), reps:parseInt(m[1]), recoverySecs:rec };
+  if ((m = t.match(/^(\d+)\s*[×xX]\s*([\d.]+)\s*mile/i)))
+    return { label:t, effort, workSecs:Math.round(parseFloat(m[2])*1.609*pace), reps:parseInt(m[1]), recoverySecs:rec };
+  if ((m = t.match(/^(\d+)\s*[×xX]\s*(\d+)\s*s\b/i)))
+    return { label:t, effort:'interval', workSecs:parseInt(m[2]), reps:parseInt(m[1]), recoverySecs:rec };
+  if ((m = t.match(/^(\d+)\s*min\b/i)))
+    return { label:t, effort, workSecs:parseInt(m[1])*60, reps:1, recoverySecs:0 };
+  if ((m = t.match(/^([\d.]+)\s*km\b/i)))
+    return { label:t, effort, workSecs:Math.round(parseFloat(m[1])*pace), reps:1, recoverySecs:0 };
+  return { label:t, effort, workSecs:300, reps:1, recoverySecs:0 };
+}
+function buildSegments(notes) {
+  if (!notes) return null;
+  const segs = notes.split('|').map(s=>s.trim()).filter(Boolean).map(parseOne).filter(Boolean);
+  return segs.length ? segs : null;
+}
+
+// ── State ──────────────────────────────────────────────────────────────────
+let segs=[], segIdx=0, repIdx=0, phase='work';
+let timeLeft=0, elapsed=0, totalDur=0;
+let paused=false, ticker=null, wakeLock=null, audioCtx=null;
+let restartHold=0;
+let speedAdjustKmh = 0;
+let actualDistanceKm = 0;
+let isIndoor = false;   // toggled on start screen
+
+function setEnv(env) {
+  isIndoor = (env === 'indoor');
+  document.getElementById('env-outdoor').classList.toggle('active', !isIndoor);
+  document.getElementById('env-indoor').classList.toggle('active',  isIndoor);
+}
+
+function prescribedSpeedKmh() {
+  const paceSecs = segs[segIdx] ? paceFor(segs[segIdx].effort) : EASY_S;
+  return 3600 / paceSecs;
+}
+function actualSpeedKmh() {
+  return Math.max(4.0, prescribedSpeedKmh() + speedAdjustKmh);
+}
+function updateSpeedDisplay() {
+  const speed = actualSpeedKmh();
+  const prescribed = prescribedSpeedKmh();
+  const diff = speed - prescribed;
+  const sign = diff > 0.05 ? '+' : '';
+  const diffStr = Math.abs(diff) > 0.05 ? ` (${sign}${diff.toFixed(1)})` : '';
+  document.getElementById('speed-display').textContent = speed.toFixed(1) + ' km/h' + diffStr;
+}
+function adjustPace(dir) {
+  speedAdjustKmh = Math.round((speedAdjustKmh + dir * 0.5) * 10) / 10;
+  const minAdj = 4.0 - prescribedSpeedKmh();
+  speedAdjustKmh = Math.max(minAdj, Math.min(5.0, speedAdjustKmh));
+  updateSpeedDisplay();
+}
+function totalDuration() {
+  return segs.reduce((s,g)=> s + g.workSecs*g.reps + g.recoverySecs*Math.max(0,g.reps-1), 0);
+}
+
+// ── UI update ──────────────────────────────────────────────────────────────
+function render() {
+  const g   = segs[segIdx];
+  const eff = phase==='recovery' ? 'recovery' : g.effort;
+
+  document.body.style.background = EFFORT_COLOR[eff];
+  document.getElementById('effort-label').textContent  = EFFORT_LABEL[eff]||'';
+  document.getElementById('segment-desc').textContent  = g.label;
+  document.getElementById('timer').textContent         = fmtTime(timeLeft);
+
+  // Goal pace — format depends on indoor vs outdoor
+  const goalPaceEl = document.getElementById('goal-pace');
+  if (phase === 'work') {
+    const targetPaceSecs = paceFor(g.effort);
+    if (isIndoor) {
+      const kmh = (3600 / targetPaceSecs).toFixed(1);
+      goalPaceEl.innerHTML = `${kmh}&thinsp;km/h&ensp;<span style="opacity:0.55;font-size:12px">· set incline 1%</span>`;
+    } else {
+      goalPaceEl.textContent = `Target: ${fmtPace(targetPaceSecs)}`;
+    }
+  } else {
+    goalPaceEl.textContent = 'Recovery jog';
+  }
+
+  // Rep counter
+  const repEl = document.getElementById('rep-counter');
+  if (g.reps > 1) {
+    repEl.textContent = phase==='recovery'
+      ? `Rest — Rep ${repIdx+1} of ${g.reps} done`
+      : `Rep ${repIdx+1} of ${g.reps}`;
+  } else {
+    repEl.textContent = `Segment ${segIdx+1} of ${segs.length}`;
+  }
+  document.getElementById('phase-label').textContent = phase==='recovery' ? 'Recovery — next rep soon' : '';
+
+  // Pace adjust — treadmill only
+  const paceAdj = document.getElementById('pace-adjust');
+  if (phase === 'work' && isIndoor) {
+    paceAdj.classList.remove('hidden');
+    updateSpeedDisplay();
+  } else {
+    paceAdj.classList.add('hidden');
+  }
+
+  // Progress bar
+  const pct = totalDur>0 ? Math.min(100,(elapsed/totalDur)*100) : 0;
+  document.getElementById('progress-bar').style.width  = pct+'%';
+  document.getElementById('elapsed-label').textContent   = fmtTime(elapsed)+' elapsed';
+  document.getElementById('remaining-label').textContent = fmtTime(Math.max(0,totalDur-elapsed))+' left';
+}
+
+// ── Timer ──────────────────────────────────────────────────────────────────
+function startTicker() {
+  if (ticker) clearInterval(ticker);
+  ticker = setInterval(tick, 1000);
+}
+function tick() {
+  if (paused) return;
+  elapsed++; timeLeft--;
+  if (phase === 'work') actualDistanceKm += actualSpeedKmh() / 3600;
+  if (timeLeft===30) beep(440,0.25,0.2);
+  if (timeLeft<=0)  { beep(880,0.3,0.15); advance(); return; }
+  render();
+}
+function advance() {
+  const g = segs[segIdx];
+  if (phase==='work' && g.reps>1 && repIdx < g.reps-1) {
+    if (g.recoverySecs>0) { phase='recovery'; timeLeft=g.recoverySecs; render(); return; }
+    repIdx++; timeLeft=g.workSecs; render(); return;
+  }
+  if (phase==='recovery') {
+    repIdx++; phase='work'; timeLeft=g.workSecs;
+    showCountdown(g, repIdx+1, ()=>{});
+    render(); return;
+  }
+  segIdx++;
+  if (segIdx>=segs.length) { completeSession(); return; }
+  repIdx=0; phase='work'; timeLeft=segs[segIdx].workSecs;
+  showCountdown(segs[segIdx], 1, ()=>{});
+  render();
+}
+
+// ── Session start / complete ───────────────────────────────────────────────
+function startSession() {
+  segIdx=0; repIdx=0; phase='work'; elapsed=0;
+  actualDistanceKm=0; speedAdjustKmh=0;
+  timeLeft=segs[0].workSecs; totalDur=totalDuration();
+  render();
+  showCountdown(segs[0], 1, ()=>startTicker());
+}
+
+function beginSession() {
+  document.getElementById('start-screen').classList.add('hidden');
+  acquireWakeLock();
+  startSession();
+}
+
+async function completeSession() {
+  if (ticker) clearInterval(ticker);
+  releaseWakeLock();
+  document.getElementById('pace-adjust').classList.add('hidden');
+  document.getElementById('complete-screen').classList.remove('hidden');
+  document.getElementById('complete-time').textContent = fmtTime(elapsed);
+  document.getElementById('complete-name').textContent = `Well done, ${ATHLETE}! ${SESSION} complete.`;
+
+  const distEl = document.getElementById('complete-dist');
+  const actualKm = parseFloat(actualDistanceKm.toFixed(2));
+  if (PLANNED_DIST > 0) {
+    distEl.textContent = `${actualKm} km done (planned ${PLANNED_DIST} km)`;
+  } else if (actualKm > 0) {
+    distEl.textContent = `${actualKm} km completed`;
+  }
+
+  beep(523,0.5,0.3);
+  setTimeout(()=>beep(659,0.5,0.3), 350);
+  setTimeout(()=>beep(784,0.6,0.5), 700);
+  await autoLog(actualKm);
+}
+
+async function autoLog(actualKm) {
+  const logEl = document.getElementById('log-status');
+  if (!TID || !API_BASE || !WEEK_NUM || !DAY_NAME) return;
+  logEl.textContent = 'Saving session…';
+  try {
+    const payload = {
+      telegram_id:              TID,
+      week_number:              WEEK_NUM,
+      day_name:                 DAY_NAME,
+      planned_distance_km:      PLANNED_DIST || null,
+      actual_distance_km:       actualKm,
+      duration_minutes:         parseFloat((elapsed / 60).toFixed(1)),
+      prescribed_pace_min_per_km: PPACE || null,
+      source:                   isIndoor ? 'treadmill' : 'outdoor',
+      rpe:                      null,
+      notes:                    null,
+    };
+    const res = await fetch(`${API_BASE}/log/run`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    logEl.textContent = res.ok ? '✓ Session logged automatically' : 'Could not save — log manually via /log';
+  } catch(e) {
+    logEl.textContent = 'Could not save — log manually via /log';
+  }
+}
+
+function closeApp() {
+  if (tg) tg.close(); else history.back();
+}
+
+function exitSession() {
+  if (ticker) clearInterval(ticker);
+  releaseWakeLock();
+  history.back();
+}
+
+// ── Countdown overlay ──────────────────────────────────────────────────────
+function showCountdown(g, rep, cb) {
+  const ov    = document.getElementById('countdown-overlay');
+  const numEl = document.getElementById('countdown-number');
+  const nextEl = document.getElementById('countdown-next');
+  const lbl = g.reps>1 ? `Rep ${rep} of ${g.reps} — ${EFFORT_LABEL[g.effort]||''}` : g.label.substring(0,50);
+  nextEl.textContent = lbl;
+  ov.classList.remove('hidden');
+  let n=3; numEl.textContent=n;
+  beep(330,0.15,0.12);
+  const ci = setInterval(()=>{
+    n--;
+    if (n<=0) { clearInterval(ci); ov.classList.add('hidden'); beep(880,0.35,0.12); if(cb)cb(); }
+    else { numEl.textContent=n; beep(330,0.15,0.12); }
+  },1000);
+}
+
+// ── Controls ───────────────────────────────────────────────────────────────
+function togglePause() {
+  paused=!paused;
+  document.getElementById('pause-btn').textContent = paused ? '▶ Resume' : '⏸ Pause';
+  if (paused) releaseWakeLock(); else acquireWakeLock();
+}
+function restartTap() {
+  const now=Date.now();
+  if (now-restartHold < 1500) {
+    restartHold=0;
+    if (ticker) clearInterval(ticker);
+    document.getElementById('complete-screen').classList.add('hidden');
+    document.getElementById('log-status').textContent='';
+    document.getElementById('complete-dist').textContent='';
+    paused=false;
+    document.getElementById('pause-btn').textContent='⏸ Pause';
+    document.getElementById('restart-btn').textContent='↺ Restart';
+    startSession();
+  } else {
+    restartHold=now;
+    document.getElementById('restart-btn').textContent='Tap again ↺';
+    setTimeout(()=>{
+      if(Date.now()-restartHold>=1400){
+        document.getElementById('restart-btn').textContent='↺ Restart';
+        restartHold=0;
+      }
+    },1600);
+  }
+}
+
+// ── Audio ──────────────────────────────────────────────────────────────────
+function getACtx() {
+  if (!audioCtx) try { audioCtx=new(window.AudioContext||window.webkitAudioContext)(); } catch(e){}
+  return audioCtx;
+}
+function beep(freq,vol,dur) {
+  try {
+    const ctx=getACtx(); if(!ctx) return;
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value=freq;
+    g.gain.setValueAtTime(vol,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);
+    o.start(ctx.currentTime); o.stop(ctx.currentTime+dur);
+  } catch(e){}
+}
+
+// ── Wake lock ──────────────────────────────────────────────────────────────
+async function acquireWakeLock() {
+  try { if('wakeLock' in navigator) wakeLock=await navigator.wakeLock.request('screen'); } catch(e){}
+}
+function releaseWakeLock() {
+  try { if(wakeLock){ wakeLock.release(); wakeLock=null; } } catch(e){}
+}
+
+// ── Bluetooth HR ───────────────────────────────────────────────────────────
+// Supports Capacitor native BLE (Android app) and Web Bluetooth (browser)
+const IS_CAPACITOR = typeof window.Capacitor !== 'undefined' && window.Capacitor.isNativePlatform?.();
+const HR_SVC       = '0000180d-0000-1000-8000-00805f9b34fb';
+const HR_CHAR      = '00002a37-0000-1000-8000-00805f9b34fb';
+
+function parseBLEHRValue(value) {
+  // value can be a base64 string (Capacitor native) or DataView (Web Bluetooth)
+  try {
+    if (typeof value === 'string') {
+      // Capacitor sends base64-encoded bytes
+      const bytes = Uint8Array.from(atob(value), c => c.charCodeAt(0));
+      const flags = bytes[0];
+      return flags & 0x01 ? (bytes[1] | (bytes[2] << 8)) : bytes[1];
+    } else {
+      // DataView from Web Bluetooth
+      const flags = value.getUint8(0);
+      return flags & 0x01 ? value.getUint16(1, true) : value.getUint8(1);
+    }
+  } catch(e) { return 0; }
+}
+
+async function connectHRCapacitor(statusEl) {
+  const BLE = window.Capacitor.Plugins.BluetoothLe;
+  if (!BLE) throw new Error('BLE plugin not available');
+
+  if (statusEl) statusEl.textContent = 'Initialising Bluetooth…';
+  await BLE.initialize();
+
+  if (statusEl) statusEl.textContent = 'Select your HR device…';
+  const device = await BLE.requestDevice({ services: [HR_SVC] });
+
+  if (statusEl) statusEl.textContent = 'Connecting…';
+  await BLE.connect({ deviceId: device.deviceId, timeout: 10000 });
+
+  // Subscribe to HR notifications
+  // Listener key format used by @capacitor-community/bluetooth-le
+  const listenerKey = `notification|${device.deviceId}|${HR_SVC}|${HR_CHAR}`;
+  BLE.addListener(listenerKey, result => {
+    const bpm = parseBLEHRValue(result.value);
+    if (bpm > 0) {
+      pushHR(bpm);
+      if (statusEl) statusEl.textContent = `Connected — ${bpm} bpm`;
+    }
+  });
+
+  await BLE.startNotifications({ deviceId: device.deviceId, service: HR_SVC, characteristic: HR_CHAR });
+}
+
+async function connectHRWeb(statusEl) {
+  if (!navigator.bluetooth) throw new Error('Web Bluetooth not available');
+  const dev = await navigator.bluetooth.requestDevice({ filters: [{ services: ['heart_rate'] }] });
+  const srv = await dev.gatt.connect();
+  const svc = await srv.getPrimaryService('heart_rate');
+  const chr = await svc.getCharacteristic('heart_rate_measurement');
+  await chr.startNotifications();
+  chr.addEventListener('characteristicvaluechanged', e => {
+    const bpm = parseBLEHRValue(e.target.value);
+    if (bpm > 0) {
+      pushHR(bpm);
+      if (statusEl) statusEl.textContent = `Connected — ${bpm} bpm`;
+    }
+  });
+}
+
+function onHRConnected(statusEl) {
+  document.getElementById('hr-btn').textContent = '💓 Connected';
+  document.getElementById('hr-btn').style.opacity = '0.5';
+  document.getElementById('start-hr-btn').textContent = '💓 HR Belt Connected ✓';
+  document.getElementById('start-hr-btn').style.opacity = '0.5';
+  if (HR_ENABLED) document.getElementById('hr-graph-wrap').classList.remove('hidden');
+  if (statusEl) statusEl.textContent = '✓ Connected — ready to go';
+}
+
+async function connectHR() {
+  try {
+    if (IS_CAPACITOR) {
+      await connectHRCapacitor(null);
+    } else {
+      await connectHRWeb(null);
+    }
+    onHRConnected(null);
+  } catch(e) { /* silent fail in header button */ }
+}
+
+async function connectHRFromStart() {
+  const statusEl = document.getElementById('start-hr-status');
+  statusEl.textContent = 'Searching for device…';
+  try {
+    if (IS_CAPACITOR) {
+      await connectHRCapacitor(statusEl);
+    } else {
+      await connectHRWeb(statusEl);
+    }
+    onHRConnected(statusEl);
+  } catch(e) {
+    statusEl.textContent = 'Could not connect — make sure belt is on and nearby';
+  }
+}
+
+// ── Start screen setup — Garmin-style step cards ───────────────────────────
+const EFFORT_COLOR_HEX = {
+  easy:      '#2e7d32',
+  threshold: '#e65100',
+  interval:  '#b71c1c',
+  rep:       '#6a1b9a',
+  marathon:  '#1565c0',
+  recovery:  '#546e7a',
+};
+
+function stepCleanName(seg) {
+  const l = seg.label.toLowerCase();
+  if (l.includes('warm') || l.startsWith('wu')) return 'Warm Up';
+  if (l.includes('cool') || l.startsWith('cd')) return 'Cool Down';
+  const effortNames = {
+    easy:'Easy Run', threshold:'Threshold', interval:'Interval',
+    rep:'Repetition / Strides', marathon:'Marathon Pace'
+  };
+  return effortNames[seg.effort] || 'Run';
+}
+
+function makeStepCard(seg, isRecovery) {
+  const name   = isRecovery ? 'Recover' : stepCleanName(seg);
+  const secs   = isRecovery ? seg.recoverySecs : seg.workSecs;
+  const effort = isRecovery ? 'recovery' : seg.effort;
+  const color  = EFFORT_COLOR_HEX[effort] || EFFORT_COLOR_HEX.easy;
+  const pace   = paceFor(effort);
+  const estKm  = (secs / pace).toFixed(1);
+  const detailLines = [];
+  if (!isRecovery) detailLines.push(`Pace · ${fmtPace(pace)}`);
+  detailLines.push(`Est Distance: ${estKm} km`);
+  return `
+    <div class="step-card">
+      <div class="step-card-inner">
+        <div class="step-card-name">${name}</div>
+        <div class="step-card-time">${fmtTime(secs)}</div>
+        <div class="step-card-detail">${detailLines.join('<br>')}</div>
+      </div>
+      <div class="step-card-bar" style="background:${color}"></div>
+    </div>`;
+}
+
+function renderWorkoutSteps(segs) {
+  let html = '';
+  segs.forEach(seg => {
+    if (seg.reps > 1) {
+      html += `<div class="repeat-block">
+        <div class="repeat-header">${seg.reps} Times</div>
+        ${makeStepCard(seg, false)}
+        ${seg.recoverySecs > 0 ? makeStepCard(seg, true) : ''}
+      </div>`;
+    } else {
+      html += makeStepCard(seg, false);
+    }
+  });
+  return html;
+}
+
+function setupStartScreen(segs) {
+  document.getElementById('start-title').textContent = SESSION;
+
+  // Notes — show raw workout description above steps
+  if (NOTES_RAW) {
+    const notesEl = document.getElementById('start-notes-row');
+    const cleanNotes = NOTES_RAW.split('|').map(s => s.trim()).filter(Boolean).join(' → ');
+    notesEl.textContent = cleanNotes;
+    notesEl.classList.remove('hidden');
+  }
+
+  // Render step cards
+  document.getElementById('start-steps').innerHTML = renderWorkoutSteps(segs);
+
+  // HR button visibility handled in window.onload
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+window.addEventListener('load', ()=>{
+  const unlock = ()=>{ getACtx(); document.removeEventListener('touchstart',unlock); };
+  document.addEventListener('touchstart', unlock);
+
+  // Hide HR buttons if no BLE support at all
+  const hasBLE = IS_CAPACITOR
+    ? (typeof window.Capacitor?.Plugins?.BluetoothLe !== 'undefined')
+    : (typeof navigator.bluetooth !== 'undefined');
+  if (!hasBLE) {
+    document.getElementById('hr-btn').style.display = 'none';
+    document.getElementById('start-hr-btn').classList.add('hidden');
+  }
+
+  document.getElementById('session-header').textContent = SESSION || 'Session Player';
+
+  segs = buildSegments(NOTES_RAW);
+
+  if (!segs || segs.length===0) {
+    document.getElementById('start-screen').classList.add('hidden');
+    document.getElementById('no-session').classList.remove('hidden');
+    return;
+  }
+
+  // Show HR graph canvas if HR data available
+  if (HR_ENABLED) {
+    const wrap = document.getElementById('hr-graph-wrap');
+    // Only show when HR belt connects — keep hidden for now
+    // (will be shown on connect)
+    const canvas = document.getElementById('hr-canvas');
+    canvas.width  = wrap.offsetWidth;
+    canvas.height = 72;
+    drawHRGraph(); // draws zone bands even before readings
+  }
+
+  // Setup and show start screen
+  setupStartScreen(segs);
+  // start-screen is shown by default (not hidden)
+});
+
+document.addEventListener('visibilitychange', ()=>{
+  if (document.visibilityState==='visible' && !paused) acquireWakeLock();
+});
+</script>
+</body>
+</html>
